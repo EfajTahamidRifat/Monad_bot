@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Monad Testnet Automation Bot</title>
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --card: #1a1a1a;
+      --text: #00ff99;
+      --text-dim: #66ffcc;
+      --error: #ff5555;
+      --success: #00ff99;
+      --border: #005533;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', monospace;
+      line-height: 1.6;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 25px;
+      padding: 15px;
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 {
+      font-size: 2.2em;
+      margin-bottom: 10px;
+      background: linear-gradient(90deg, #00ff99, #00cc77);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .links a {
+      color: var(--text-dim);
+      text-decoration: none;
+      margin: 0 10px;
+    }
+    .links a:hover {
+      text-decoration: underline;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 25px;
+    }
+    @media (max-width: 768px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .card h2 {
+      margin-bottom: 15px;
+      color: var(--text-dim);
+      font-size: 1.3em;
+    }
+    .status-line {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      font-size: 1.1em;
+    }
+    .status-value {
+      font-weight: bold;
+    }
+    .status-error { color: var(--error); }
+    .status-success { color: var(--success); }
+    .btn {
+      background: var(--text);
+      color: #000;
+      border: none;
+      padding: 12px 24px;
+      font-size: 1.1em;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+    }
+    .btn:hover:not(:disabled) {
+      background: #00cc77;
+      transform: translateY(-2px);
+    }
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .logs {
+      height: 400px;
+      overflow-y: auto;
+      background: #000;
+      padding: 15px;
+      font-family: monospace;
+      font-size: 0.95em;
+      border-radius: 6px;
+    }
+    .log-entry {
+      margin-bottom: 4px;
+      word-break: break-all;
+    }
+    .services {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .service-item {
+      background: rgba(0, 255, 153, 0.05);
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Monad Testnet Automation Bot</h1>
+      <div class="links">
+        <a href="https://github.com/rpchubs" target="_blank">GitHub</a> |
+        <a href="https://t.me/chat_RPC_Community" target="_blank">Telegram</a> |
+        <a href="https://testnet.monadexplorer.com" target="_blank">Explorer</a>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Bot Status</h2>
+        <div class="status-line">
+          <span>Status:</span>
+          <span id="status" class="status-value">Idle</span>
+        </div>
+        <div class="status-line">
+          <span>Wallet:</span>
+          <span id="wallet">-</span>
+        </div>
+        <div class="status-line">
+          <span>Balance:</span>
+          <span id="balance">0.0000</span> MON
+        </div>
+        <div class="status-line">
+          <span>Cycle:</span>
+          <span id="cycle">0/3</span>
+        </div>
+        <button id="startBtn" class="btn" onclick="startBot()">🚀 Start Bot</button>
+      </div>
+
+      <div class="card">
+        <h2>Active Services</h2>
+        <div id="services" class="services">
+          <div class="service-item">Swap (WMON)</div>
+          <div class="service-item">Uniswap</div>
+          <div class="service-item">BeanSwap</div>
+          <div class="service-item">SendTx</div>
+          <div class="service-item">Deploy</div>
+          <div class="service-item">Kitsu</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Live Transaction Log</h2>
+      <div id="logs" class="logs"></div>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      status: document.getElementById('status'),
+      wallet: document.getElementById('wallet'),
+      balance: document.getElementById('balance'),
+      cycle: document.getElementById('cycle'),
+      logs: document.getElementById('logs'),
+      btn: document.getElementById('startBtn')
+    };
+
+    const eventSource = new EventSource('/events');
+    eventSource.onmessage = (e) => {
+      const data = JSON.parse(e.data);
+      
+      // Status
+      state.status.textContent = data.status;
+      state.status.className = 'status-value ' + 
+        (data.status === 'Error' ? 'status-error' : 'status-success');
+      
+      // Wallet & Balance
+      state.wallet.textContent = data.wallet || '-';
+      state.balance.textContent = data.balance || '0.0000';
+      state.cycle.textContent = `${data.cycles?.current || 0}/${data.cycles?.total || 3}`;
+      
+      // Logs
+      state.logs.innerHTML = (data.logs || []).map(l => 
+        `<div class="log-entry">${l}</div>`
+      ).join('');
+      state.logs.scrollTop = state.logs.scrollHeight;
+      
+      // Button
+      state.btn.disabled = data.status === 'Running';
+    };
+
+    async function startBot() {
+      state.btn.disabled = true;
+      try {
+        const res = await fetch('/start', { method: 'POST' });
+        if (!res.ok) throw new Error('Failed to start');
+      } catch (e) {
+        alert('Error: ' + e.message);
+        state.btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
