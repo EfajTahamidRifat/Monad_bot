@@ -168,6 +168,6 @@ app.get('/', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`\n✅ Monad Bot Dashboard running at http://localhost:${PORT}\n`);
-  console.log(`🔗 GitHub: https://github.com/rpchubs`);
-  console.log(`💬 Telegram: https://t.me/chat_RPC_Community\n`);
+  console.log(`🔗 GitHub: https://github.com/EfajTahamidRifat`);
+  console.log(`💬 Telegram: https://t.me/cryptoHunters_247\n`);
 });
